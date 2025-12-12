@@ -1,0 +1,52 @@
+version: '3.9'
+
+services:
+  server:
+    image: marshrutka/server:latest
+    restart: unless-stopped
+    env_file:
+      - ./server/.env
+    networks:
+      - marshrutka_net
+    ports:
+      - "8080:8080"
+
+  customer-ui:
+    image: marshrutka/customer-ui:latest
+    restart: unless-stopped
+    networks:
+      - marshrutka_net
+    ports:
+      - "3000:3000"
+
+  nginx:
+    image: marshrutka/nginx:latest
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - server
+      - customer-ui
+    networks:
+      - marshrutka_net
+
+  certbot:
+    image: certbot/certbot:latest
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    command: >
+      certonly --webroot -w /var/www/certbot
+      --force-renewal 
+      --email nazar.nazar.kurii@gmail.com 
+      --agree-tos
+      -d marshrutka.store 
+      -d pumpkinbooks.store
+    networks:
+      - marshrutka_net
+
+# Define a single network
+networks:
+  marshrutka_net:
+    driver: bridge
