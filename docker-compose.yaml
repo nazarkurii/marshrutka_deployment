@@ -1,6 +1,6 @@
 services:
   server:
-    image: ghcr.io/nazarkurii/marshrutka-server:latest
+    image: ghcr.io/nazarkurii/marshrutka_api:latest
     restart: unless-stopped
     env_file:
       - ./server/.env
