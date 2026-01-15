@@ -1,0 +1,51 @@
+name: Production Environment
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Deploy To Droplet
+      uses: appleboy/ssh-action@v1.0.3
+      with: 
+        host: ${{ secrets.DO_HOST }}
+        username: ${{ secrets.DO_USER }}
+        key: ${{ secrets.DO_SSH_KEY }}
+        script: |
+          cd ~/marshrutka/deployment
+
+          git pull origin main
+
+          if ! docker network inspect marshrutka_net >/dev/null 2>&1; then
+            docker network create marshrutka_net
+          fi
+
+          set -e
+
+          CONTAINER_NAME=nginx
+          IMAGE=nginx:1.29.4
+
+          if docker ps --format '{{.Names}}' | grep -q "^$CONTAINER_NAME$"; then
+            docker restart $CONTAINER_NAME
+          else
+            docker rm $CONTAINER_NAME || true
+
+            docker pull $IMAGE
+
+            docker run -d \
+              --name $CONTAINER_NAME \
+              --restart unless-stopped \
+              --network marshrutka_net \
+              -p 80:80 \
+              -p 443:443 \
+              -v "$(pwd)/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro" \
+              -v "$(pwd)/certbot/www:/var/www/certbot" \
+              -v "$(pwd)/certbot/conf:/etc/letsencrypt" \
+              $IMAGE
+          fi
